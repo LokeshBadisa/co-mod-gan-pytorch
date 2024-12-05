@@ -56,15 +56,15 @@ class CoModModel(torch.nn.Module):
         if opt.isTrain:
             if not opt.continue_train:
                 if opt.load_pretrained_g is not None:
-                    print(f"looad {opt.load_pretrained_g}")
+                    print(f"Load {opt.load_pretrained_g}")
                     self.netG = util.load_network_path(
                             self.netG, opt.load_pretrained_g)
                 if opt.load_pretrained_g_ema is not None:
-                    print(f"looad {opt.load_pretrained_g}")
+                    print(f"Load {opt.load_pretrained_g_ema}")
                     self.netG_ema = util.load_network_path(
                             self.netG_ema, opt.load_pretrained_g_ema)
                 if opt.load_pretrained_d is not None:
-                    print(f"looad {opt.load_pretrained_d}")
+                    print(f"Load {opt.load_pretrained_d}")
                     self.netD = util.load_network_path(
                             self.netD, opt.load_pretrained_d)
                 self.mask_creator = MaskCreator(opt.path_objectshape_list, opt.path_objectshape_base)
@@ -213,7 +213,7 @@ class CoModModel(torch.nn.Module):
                         min(h,w)//4, min(h,w)//2)
             # use the mix of two masks
             mask = (mask1+mask2>0)
-            mask = mask.astype(np.float)
+            mask = mask.astype(np.float64)
             mask = self.FloatTensor(mask)[None, None,...].expand(b,-1,-1,-1)
             data['mask'] = mask
         else:

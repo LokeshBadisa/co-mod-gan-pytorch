@@ -22,6 +22,8 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--dataset_mode_train', type=str, default='coco')
         parser.add_argument('--dataset_mode', type=str, default='coco')
         parser.add_argument('--dataset_mode_val', type=str, required=False)
+        parser.add_argument('--imagenet_dir', type=str, default='./data/DATASETS')
+        parser.add_argument('--classes_list', type=str, default='./PIN_classes.txt')
 
         # for training
         parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')

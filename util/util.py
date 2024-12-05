@@ -14,6 +14,7 @@ import os
 import argparse
 import dill as pickle
 import util.coco
+from torchvision import transforms
 
 
 def save_obj(obj, name):
@@ -296,3 +297,19 @@ class Colorize(object):
             color_image[2][mask] = self.cmap[label][2]
 
         return color_image
+
+mu = (0.485, 0.456, 0.406)
+sigma = (0.229, 0.224, 0.225)
+inv_mu = []
+for i in range(3):
+    inv_mu.append(-mu[i]/sigma[i])
+inv_mu = tuple(inv_mu)
+inv_sigma = (1/sigma[0], 1/sigma[1], 1/sigma[2])
+
+def inverse_transform(img):
+    img = transforms.Normalize(mean=inv_mu, std=inv_sigma)(img)    
+    # print(img.min(), img.max())
+    # img = transforms.ToPILImage()(img)
+    # print(np.array(img).min(), np.array(img).max())
+    # img = img.astype('uint8')    
+    return img

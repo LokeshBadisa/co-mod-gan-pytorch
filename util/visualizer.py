@@ -9,10 +9,7 @@ import time
 from . import util
 from . import html
 import scipy.misc
-try:
-    from StringIO import StringIO  # Python 2.7
-except ImportError:
-    from io import BytesIO         # Python 3.x
+from io import BytesIO         
 
 class Visualizer():
     def __init__(self, opt):
@@ -46,12 +43,8 @@ class Visualizer():
                 
         if self.tf_log: # show images in tensorboard output
             img_summaries = []
-            for label, image_numpy in visuals.items():
-                # Write the image to a string
-                try:
-                    s = StringIO()
-                except:
-                    s = BytesIO()
+            for label, image_numpy in visuals.items():                
+                s = BytesIO()
                 if len(image_numpy.shape) >= 4:
                     image_numpy = image_numpy[0]
                 scipy.misc.toimage(image_numpy).save(s, format="jpeg")
@@ -121,7 +114,7 @@ class Visualizer():
             v = v.mean().float()
             message += '%s: %.3f ' % (k, v)
 
-        print(message)
+        # print(message)
         with open(self.log_name, "a") as log_file:
             log_file.write('%s\n' % message)
 

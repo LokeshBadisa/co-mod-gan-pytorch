@@ -1,0 +1,7 @@
+*.pth
+*.pkl
+output/*
+ImageNet.ipynb
+temp/*
+**/__pycache__
+checkpoints/comod_imagenet/*.txt

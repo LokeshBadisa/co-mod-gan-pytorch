@@ -2,29 +2,34 @@
 Copyright (C) 2019 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
-import pdb
 import sys
 import torch
-import numpy as np
-from collections import OrderedDict
+from tqdm import tqdm
 from options.train_options import TrainOptions
 import data
 from util.iter_counter import IterationCounter
+import shutil
 from logger import Logger
 from torchvision.utils import make_grid
 from trainers import create_trainer
+import numpy as np
 from save_remote_gs import init_remote, upload_remote
-from models.networks.sync_batchnorm import DataParallelWithCallback
-from pytorch_fid.fid_model import FIDModel
+# from models.networks.sync_batchnorm import DataParallelWithCallback
+# from pytorch_fid.fid_model import FIDModel
+from pytorch_fid.fid_score import calculate_fid_given_paths, FID_Evaluator
+from pathlib import Path
+from PIL import Image
+from util.util import inverse_transform
+
 
 # parse options
 opt = TrainOptions().parse()
 
 # fid
-fid_model = FIDModel().cuda()
-fid_model.model = DataParallelWithCallback(
-        fid_model.model,
-        device_ids=opt.gpu_ids)
+# fid_model = FIDModel().cuda()
+# fid_model.model = DataParallelWithCallback(
+#         fid_model.model,
+#         device_ids=opt.gpu_ids)
 
 
 # load remote 
@@ -32,14 +37,18 @@ if opt.save_remote_gs is not None:
     init_remote(opt)
 
 # print options to help debugging
-print(' '.join(sys.argv))
+# print(' '.join(sys.argv))
 
 # load the dataset
-if opt.dataset_mode_val is not None:
-    dataloader_train, dataloader_val = data.create_dataloader_trainval(opt)
-else:
-    dataloader_train = data.create_dataloader(opt)
-    dataloader_val = None
+# if opt.dataset_mode_val is not None:
+#     dataloader_train, dataloader_val = data.create_dataloader_trainval(opt)
+# else:
+#     dataloader_train = data.create_dataloader(opt)
+#     dataloader_val = None
+dataloader_train = data.create_dataloader(opt,'train')
+if opt.validation_freq>0:
+    dataloader_val = data.create_dataloader(opt,'val')
+    fid_eval = FID_Evaluator(32,0,2048,4)
 
 # create trainer for our model
 trainer = create_trainer(opt)
@@ -105,7 +114,7 @@ def display_batch(epoch, data_i):
 
 for epoch in iter_counter.training_epochs():
     iter_counter.record_epoch_start(epoch)
-    for i, data_i in enumerate(dataloader_train, start=iter_counter.epoch_iter):
+    for i, data_i in tqdm(enumerate(dataloader_train, start=iter_counter.epoch_iter),total=len(dataloader_train)-iter_counter.epoch_iter):
         iter_counter.record_one_iteration()
         # train discriminator
         if not opt.freeze_D:
@@ -126,7 +135,9 @@ for epoch in iter_counter.training_epochs():
             trainer.save('epoch%d_step%d'%
                     (epoch, iter_counter.total_steps_so_far))
             trainer.save('latest')
-            iter_counter.record_current_iter()
+            # iter_counter.record_current_iter()
+            # Path(f'temp/gt').mkdir(parents=True, exist_ok=True)
+            # Path(f'temp/gen').mkdir(parents=True, exist_ok=True)
             if dataloader_val is not None:
                 print("doing validation")
                 model.eval()
@@ -141,9 +152,30 @@ for epoch in iter_counter.training_epochs():
                     psnr = get_psnr(generated, gt)
                     psnr_total += psnr
                     num += bsize
-                    fid_model.add_sample((generated+1)/2,(gt+1)/2)
+                    fid_eval.add_sample(inverse_transform(generated), inverse_transform(gt))
+                    # fid_model.add_sample((generated+1)/2,(gt+1)/2)
+                    #Save images
+                    # for i in range(bsize):
+                    #     img = generated[i]
+                    #     img = inverse_transform(img)
+                    #     if np.array(img).min()<0 or np.array(img).max()>255:
+                    #         print(img.min(), img.max())
+                    #     img.save(f'temp/gen/{num+i}.png')
+                    #     img = gt[i]#.permute(1,2,0)
+                    #     img = inverse_transform(img)#.permute(1,2,0)
+                    #     img.save(f'temp/gt/{num+i}.png')
                 psnr_total /= num
-                fid = fid_model.calculate_activation_statistics()
+                # fid = fid_model.calculate_activation_statistics()
+                # fid = calculate_fid_given_paths(('temp/gt', 'temp/gen'), 32, 0, 2048, 4)
+                # fid_eval.generated = torch.cat(fid_eval.generated,0)
+                # fid_eval.real = torch.cat(fid_eval.real,0)
+                # print(len(fid_eval.generated),len(fid_eval.real))
+                # print(type(fid_eval.generated),type(fid_eval.real))
+                fid = fid_eval.get_fid()
+                fid_eval.clear()
+                print(f"FID: {fid}")
+                #Remove temp folder
+                # shutil.rmtree('temp')
                 writer.add_scalar("val.fid", fid, iter_counter.total_steps_so_far)
                 writer.write_scalar("val.fid", fid, iter_counter.total_steps_so_far)
                 writer.add_scalar("val.psnr", psnr_total, iter_counter.total_steps_so_far)

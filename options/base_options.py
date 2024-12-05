@@ -41,6 +41,7 @@ class BaseOptions():
         parser.add_argument('--load_from_opt_file', action='store_true', help='load the options from checkpoints and use that as default')
         parser.add_argument('--cache_filelist_write', action='store_true', help='saves the current filelist into a text file, so that it loads faster')
         parser.add_argument('--cache_filelist_read', action='store_true', help='reads from the file list cache')
+        parser.add_argument('--val_annfile', type=str, default=None, help='path to the annotation file for validation')
 
         # for generator
         parser.add_argument('--netG', type=str, default='comodgan', help='selects model to use for netG (pix2pixhd | spade)')
@@ -59,7 +60,7 @@ class BaseOptions():
             parser = self.initialize(parser)
 
         # get the basic options
-        opt, unknown = parser.parse_known_args()
+        opt, _ = parser.parse_known_args()
 
         # modify model-related parser options
         model_name = opt.model
@@ -67,20 +68,20 @@ class BaseOptions():
         parser = model_option_setter(parser, self.isTrain)
 
         # modify dataset-related parser options
-        if self.isTrain and opt.dataset_mode_val is not None:
-            dataset_mode_train = opt.dataset_mode_train
-            dataset_option_setter = data.get_option_setter(dataset_mode_train)
-            parser = dataset_option_setter(parser, self.isTrain)
+        # if self.isTrain and opt.dataset_mode_val is not None:
+        #     dataset_mode_train = opt.dataset_mode_train
+        #     dataset_option_setter = data.get_option_setter(dataset_mode_train)
+        #     parser = dataset_option_setter(parser, self.isTrain)
 
-            dataset_mode_val = opt.dataset_mode_val
-            dataset_option_setter = data.get_option_setter(dataset_mode_val)
-            parser = dataset_option_setter(parser, self.isTrain)
-        else:
-            dataset_mode = opt.dataset_mode
-            dataset_option_setter = data.get_option_setter(dataset_mode)
-            parser = dataset_option_setter(parser, self.isTrain)
+        #     dataset_mode_val = opt.dataset_mode_val
+        #     dataset_option_setter = data.get_option_setter(dataset_mode_val)
+        #     parser = dataset_option_setter(parser, self.isTrain)
+        # else:
+        #     dataset_mode = opt.dataset_mode
+        #     dataset_option_setter = data.get_option_setter(dataset_mode)
+        #     parser = dataset_option_setter(parser, self.isTrain)
 
-        opt, unknown = parser.parse_known_args()
+        opt, _ = parser.parse_known_args()
 
         # if there is opt_file, load it.
         # The previous default options will be overwritten
@@ -141,7 +142,7 @@ class BaseOptions():
         opt = self.gather_options()
         opt.isTrain = self.isTrain   # train or test
 
-        self.print_options(opt)
+        # self.print_options(opt)
         if opt.isTrain:
             self.save_options(opt)
 

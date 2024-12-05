@@ -1,4 +1,7 @@
 # co-mod-gan-pytorch
+
+-> This fork adds training on ImageNet. Note that `pytorch-fid` used is from https://github.com/LokeshBadisa/pytorch-fid and not https://github.com/zengxianyu/pytorch-fid. <-
+
 Implementation of the paper ``Large Scale Image Completion via Co-Modulated Generative Adversarial Networks"
 
 official tensorflow version: https://github.com/zsyzzsoft/co-mod-gan
