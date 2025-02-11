@@ -230,6 +230,16 @@ def load_network(net, label, epoch, opt):
     net.load_state_dict(new_dict, strict=False)
     return net
 
+def load_model(net, weights_path):
+    weights = torch.load(weights_path)
+    new_dict = {}
+    for k,v in weights.items():
+        if k.startswith("module."):
+            k=k.replace("module.","")
+        new_dict[k] = v
+    net.load_state_dict(new_dict, strict=False)
+    return net
+
 
 ###############################################################################
 # Code from

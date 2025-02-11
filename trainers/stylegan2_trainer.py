@@ -102,12 +102,12 @@ class StyleGAN2Trainer():
             new_lr = self.old_lr
 
         if new_lr != self.old_lr:
-            if self.opt.no_TTUR:
-                new_lr_G = new_lr
-                new_lr_D = new_lr
-            else:
-                new_lr_G = new_lr / 2
-                new_lr_D = new_lr * 2
+            # if self.opt.no_TTUR:
+            #     new_lr_G = new_lr
+            #     new_lr_D = new_lr
+            # else:
+            new_lr_G = new_lr / 2
+            new_lr_D = new_lr * 2
 
             for param_group in self.optimizer_D.param_groups:
                 param_group['lr'] = new_lr_D

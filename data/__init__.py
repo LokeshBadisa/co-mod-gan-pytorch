@@ -20,25 +20,6 @@ def multiload(data, L):
         ans += data.annToMask(data.loadAnns(L[i])[0])
     return ans
 
-class FilteredImageNet(Dataset):
-    def __init__(self, imagenet_dir, classes_file, partition, opt):
-        self.classes = []
-        self.opt = opt
-        with open(classes_file, 'r') as f:
-            for line in f:
-                self.classes.append(line.strip())        
-        self.train_dataset = ImageNet(root=imagenet_dir, split=partition)
-        self.classes = [self.train_dataset.wnid_to_idx[i] for i in self.classes]
-        self.filtered_indices = [i for i, target in enumerate(self.train_dataset.targets) if target in self.classes]
-
-    def __len__(self):
-        return 100#len(self.filtered_indices)
-
-    def __getitem__(self, idx):
-        image = self.train_dataset[self.filtered_indices[idx]][0] 
-        params = get_params(self.opt, image.size)
-        transform_image = get_transform(self.opt, params)
-        return {'image':transform_image(image)}
     
 class PartImageNetDataset(Dataset):
     def __init__(self, opt):
@@ -71,15 +52,71 @@ class PartImageNetDataset(Dataset):
         idx = self.allow_indices[idx]
         file_name = Path(self.data.loadImgs(idx)[0]['file_name'])
         image = Image.open(str(self.imageroot/file_name)).convert('RGB')
-        try:
-            mask = multiload(self.data, self.data.getAnnIds(imgIds=idx))
-        except:
-            print("Error loading index ", idx)
+        # try:
+        mask = multiload(self.data, self.data.getAnnIds(imgIds=idx))
+        # except:
+        #     print("Error loading index ", idx)
         mask = np.where(mask>0,1,0)
         mask = Image.fromarray((mask*255).astype(np.uint8))
-        sample = {'image': self.image_transform(image), 'mask': self.mask_transform(mask)}
+        sample = {'image': self.image_transform(image), 'mask': self.mask_transform(mask),'path':str(file_name)}
         return sample
     
+
+class FilteredImageNet(Dataset):
+    def __init__(self, imagenet_dir, classes_file, partition, opt):
+        self.classes = []
+        self.opt = opt
+        with open(classes_file, 'r') as f:
+            for line in f:
+                self.classes.append(line.strip())        
+        self.train_dataset = ImageNet(root=imagenet_dir, split=partition)
+        self.classes = [self.train_dataset.wnid_to_idx[i] for i in self.classes]
+        self.filtered_indices = [i for i, target in enumerate(self.train_dataset.targets) if target in self.classes]
+        self.filtered_indices_map = {Path(self.train_dataset.imgs[i][0]).stem:i for i in self.filtered_indices}
+
+        partinet = PartImageNetDataset(opt)
+        for i in range(len(partinet)):
+            self.filtered_indices_map.pop(Path(partinet.data.dataset['images'][i]['file_name']).stem, None)
+                        
+        self.filtered_indices = [self.filtered_indices_map[k] for k in self.filtered_indices_map]
+
+    def __len__(self):
+        return len(self.filtered_indices)
+
+    def __getitem__(self, idx):
+        image = self.train_dataset[self.filtered_indices[idx]][0] 
+        params = get_params(self.opt, image.size)
+        transform_image = get_transform(self.opt, params)
+        return {'image':transform_image(image)}
+
+class NativeImageNet(Dataset):
+    def __init__(self, imagenet_dir, partition, opt):
+        self.classes = []
+        self.opt = opt
+        # with open(classes_file, 'r') as f:
+        #     for line in f:
+        #         self.classes.append(line.strip())        
+        self.train_dataset = ImageNet(root=imagenet_dir, split=partition)
+        # self.classes = [self.train_dataset.wnid_to_idx[i] for i in self.classes]
+        # self.filtered_indices = [i for i, target in enumerate(self.train_dataset.targets) if target in self.classes]
+        # self.filtered_indices_map = {Path(self.train_dataset.imgs[i][0]).stem:i for i in self.filtered_indices}
+
+        # partinet = PartImageNetDataset(opt)
+        # for i in range(len(partinet)):
+        #     self.filtered_indices_map.pop(Path(partinet.data.dataset['images'][i]['file_name']).stem, None)
+                        
+        # self.filtered_indices = [self.filtered_indices_map[k] for k in self.filtered_indices_map]
+
+    def __len__(self):
+        return len(self.train_dataset)
+
+    def __getitem__(self, idx):
+        # image = self.train_dataset[self.filtered_indices[idx]][0] 
+        image = self.train_dataset[idx][0]
+        params = get_params(self.opt, image.size)
+        transform_image = get_transform(self.opt, params)
+        return {'image':transform_image(image)}
+
 # def find_dataset_using_name(dataset_name):
 #     # Given the option --dataset [datasetname],
 #     # the file "datasets/datasetname_dataset.py"
@@ -113,6 +150,7 @@ class PartImageNetDataset(Dataset):
 def create_dataloader(opt,partition):
     if partition == 'train':
         dataset = FilteredImageNet(imagenet_dir=opt.imagenet_dir, classes_file=opt.classes_list, partition=partition, opt=opt)
+        # dataset = NativeImageNet(imagenet_dir=opt.imagenet_dir, partition=partition, opt=opt)
     elif partition == 'val':
         dataset = PartImageNetDataset(opt)
     print(dataset.__len__())

@@ -2,6 +2,7 @@
 Copyright (C) 2019 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
+
 import sys
 import torch
 from tqdm import tqdm
@@ -56,6 +57,7 @@ model = trainer.pix2pix_model
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader_train))
+best_fid = torch.inf
 
 # create tool for visualization
 writer = Logger(f"output/{opt.name}")
@@ -65,9 +67,9 @@ with open(f"output/{opt.name}/savemodel", "w") as f:
 trainer.save('latest')
 
 def get_psnr(generated, gt):
-    generated = (generated+1)/2*255
+    generated = inverse_transform(generated)*255
     bsize, c, h, w = gt.shape
-    gt = (gt+1)/2*255
+    gt = inverse_transform(gt)*255
     mse = ((generated-gt)**2).sum(3).sum(2).sum(1)
     mse /= (c*h*w)
     psnr = 10*torch.log10(255.0*255.0 / (mse+1e-8))
@@ -80,14 +82,14 @@ def display_batch(epoch, data_i):
     writer.write_console(epoch, iter_counter.epoch_iter, iter_counter.time_per_iter)
     num_print = min(4, data_i['image'].size(0))
     writer.add_single_image('inputs',
-            (make_grid(trainer.get_latest_inputs()[:num_print])+1)/2,
+            inverse_transform(make_grid(trainer.get_latest_inputs()[:num_print])),
             iter_counter.total_steps_so_far)
     infer_out,inp = trainer.pix2pix_model.forward(data_i, mode='inference')
-    vis = (make_grid(inp[:num_print])+1)/2
+    vis = inverse_transform(make_grid(inp[:num_print]))
     writer.add_single_image('infer_in',
             vis,
             iter_counter.total_steps_so_far)
-    vis = (make_grid(infer_out[:num_print])+1)/2
+    vis = inverse_transform(make_grid(infer_out[:num_print]))
     vis = torch.clamp(vis, 0,1)
     writer.add_single_image('infer_out',
             vis,
@@ -103,7 +105,7 @@ def display_batch(epoch, data_i):
                     iter_counter.total_steps_so_far)
         else:
             if v.size(1) == 3:
-                vis = (make_grid(v[:num_print])+1)/2
+                vis = inverse_transform(make_grid(v[:num_print]))
                 vis = torch.clamp(vis, 0,1)
             else:
                 vis = make_grid(v[:num_print])
@@ -130,10 +132,10 @@ for epoch in iter_counter.training_epochs():
         if opt.save_remote_gs is not None and iter_counter.needs_saving():
             upload_remote(opt)
         if iter_counter.needs_validation():
-            print('saving the latest model (epoch %d, total_steps %d)' %
-                  (epoch, iter_counter.total_steps_so_far))
-            trainer.save('epoch%d_step%d'%
-                    (epoch, iter_counter.total_steps_so_far))
+            # print('saving the latest model (epoch %d, total_steps %d)' %
+            #       (epoch, iter_counter.total_steps_so_far))
+            # trainer.save('epoch%d_step%d'%
+                    # (epoch, iter_counter.total_steps_so_far))
             trainer.save('latest')
             # iter_counter.record_current_iter()
             # Path(f'temp/gt').mkdir(parents=True, exist_ok=True)
@@ -173,6 +175,9 @@ for epoch in iter_counter.training_epochs():
                 # print(type(fid_eval.generated),type(fid_eval.real))
                 fid = fid_eval.get_fid()
                 fid_eval.clear()
+                if fid < best_fid:
+                    best_fid = fid
+                    trainer.save('best')
                 print(f"FID: {fid}")
                 #Remove temp folder
                 # shutil.rmtree('temp')

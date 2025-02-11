@@ -172,7 +172,8 @@ class CoModModel(torch.nn.Module):
             netG=None
 
         if not opt.isTrain or opt.continue_train:
-            netG_ema = util.load_network(netG_ema, 'G_ema', opt.which_epoch, opt)
+            # netG_ema = util.load_network(netG_ema, 'G_ema', opt.which_epoch, opt)
+            netG_ema = util.load_model(netG_ema, opt.load_pretrained_g_ema)
             if opt.isTrain:
                 netG = util.load_network(netG, 'G', opt.which_epoch, opt)
                 netD = util.load_network(netD, 'D', opt.which_epoch, opt)
