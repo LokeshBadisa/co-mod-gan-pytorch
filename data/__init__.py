@@ -23,8 +23,8 @@ def multiload(data, L):
     
 class PartImageNetDataset(Dataset):
     def __init__(self, opt):
-        self.maskroot = Path(opt.val_annfile).parent.parent/Path(opt.val_annfile).stem
-        self.imageroot = self.maskroot.parent.parent/'images'/ Path(opt.val_annfile).stem
+        self.maskroot = Path(opt.val_annfile).parent/Path(opt.val_annfile).stem
+        self.imageroot = self.maskroot.parent/ Path(opt.val_annfile).stem
         self.data = COCO(opt.val_annfile)   
         transform_list = [
                 transforms.Resize((opt.crop_size, opt.crop_size), 
@@ -40,10 +40,40 @@ class PartImageNetDataset(Dataset):
             transforms.Resize((opt.crop_size, opt.crop_size),interpolation=Image.BICUBIC),
             transforms.ToTensor()
             ])     
-                
-        # self.deny_indices = [21, 85, 145, 380, 969, 977, 1158]  # For val
-        self.deny_indices = [65, 347, 533, 657, 728, 945, 969, 1061, 1613, 1630, 1738, 1819, 1906, 1928, 2001, 2219, 2254, 2406]  #For test
-        self.allow_indices = [i for i in range(len(self.data.dataset['images'])) if i not in self.deny_indices]
+
+        if Path(opt.val_annfile).stem == 'val':
+            self.deny_indices = [0, 81, 258, 263, 300, 313, 560, 572, 1150,\
+                             1169, 1211, 1494, 1870, 2018, 2347, 2362,\
+                             2402, 2683, 2726] #val
+        elif Path(opt.val_annfile).stem == 'test':
+            self.deny_indices = [213, 291, 455, 494, 515, 516, 520, 592, 727,\
+                             761, 1576, 1816, 2415, 2752, 2893, 2995, 3025,\
+                             3182, 3278, 3336, 3349, 3399, 3453, 3459, 3616,\
+                             3639, 3779, 3837, 4040, 4190, 4435, 4441, 4477,\
+                             4479, 4510, 4576, 4597]   #test
+        else:
+            self.deny_indices = [231, 252, 511, 841, 1064, 1078, 1273, 1288,\
+                             1323, 1393, 1450, 1617, 1725, 1876, 1960,\
+                             2018, 2091, 2104, 2457, 2509, 2563, 2727,\
+                             2816, 2854, 2867, 3078, 3087, 3165, 3285,\
+                             3327, 3331, 3712, 3738, 3947, 4052, 4066,\
+                             4089, 4101, 4116, 4174, 4270, 4348, 4396,\
+                             4502, 4614, 4629, 4770, 4886, 5032, 5114,\
+                             5356, 5377, 5469, 5669, 6331, 6487, 6693,\
+                             6901, 6918, 7130, 7214, 7290, 7377, 7457,\
+                             7593, 7708, 7811, 7836, 7936, 8085, 8247,\
+                             8368, 8719, 8763, 8895, 9214, 9245, 9278,\
+                             10015, 10228, 10896, 10992, 11127, 11156,\
+                             11170, 11177, 11362, 11775, 11888, 11906,\
+                             11942, 12099, 12109, 12124, 12182, 12327,\
+                             12417, 12441, 12516, 12892, 12925, 12951,\
+                             12965, 13171, 13203, 13280, 13336, 13368,\
+                             13485, 13539, 13564, 13603, 13744, 13751,\
+                             13793, 13833, 14022, 14279, 14421, 14688,\
+                             14757, 14813, 14868, 14914, 14994, 14995,\
+                             15018, 15161, 15293, 15297, 15365, 15465,\
+                             15574, 16019, 16031, 16245, 16496] #train
+        self.allow_indices = [i for i in range(len(self.data.dataset['images'])) if i not in self.deny_indices]        
 
     def __len__(self):
         return len(self.allow_indices)
@@ -51,11 +81,13 @@ class PartImageNetDataset(Dataset):
     def __getitem__(self, idx):
         idx = self.allow_indices[idx]
         file_name = Path(self.data.loadImgs(idx)[0]['file_name'])
-        image = Image.open(str(self.imageroot/file_name)).convert('RGB')
-        # try:
-        mask = multiload(self.data, self.data.getAnnIds(imgIds=idx))
-        # except:
-        #     print("Error loading index ", idx)
+        folder = Path(self.data.loadImgs(idx)[0]['file_name'].split('_')[0])
+        image = Image.open(str(self.imageroot/folder/file_name)).convert('RGB')        
+        try:
+            mask = multiload(self.data, self.data.getAnnIds(imgIds=idx))        
+        except:
+            print('Error Loading', idx)
+            return None
         mask = np.where(mask>0,1,0)
         mask = Image.fromarray((mask*255).astype(np.uint8))
         sample = {'image': self.image_transform(image), 'mask': self.mask_transform(mask),'path':str(file_name)}

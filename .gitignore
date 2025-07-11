@@ -3,7 +3,7 @@
 output/*
 ImageNet.ipynb
 temp/*
-**/__pycache__
+__pycache__/
 checkpoints/*
 results
 *.log
